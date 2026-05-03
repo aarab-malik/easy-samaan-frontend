@@ -1,7 +1,7 @@
 'use client';
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { apiClient } from "../lib/api-client";
 import { useAuth } from "../lib/auth-context";
 import { Product } from "../lib/types";
@@ -54,7 +54,7 @@ function filtersPending(draft: ShopFilters, applied: ShopFilters): boolean {
   return a !== b;
 }
 
-export default function ShopPage() {
+function ShopPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { token, user, isAuthenticated } = useAuth();
@@ -632,5 +632,13 @@ export default function ShopPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white py-8 text-center text-black">Loading shop...</div>}>
+      <ShopPageContent />
+    </Suspense>
   );
 }
