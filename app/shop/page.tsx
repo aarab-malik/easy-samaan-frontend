@@ -5,7 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { apiClient } from "../lib/api-client";
 import { useAuth } from "../lib/auth-context";
 import { Product } from "../lib/types";
-import { getDisplayPrice, hasActiveDiscount } from "../lib/pricing";
+import { getDisplayPrice, hasActiveDiscount, SHOP_PRICE_FILTER_MAX_RS } from "../lib/pricing";
 import { getProductImageUrl } from "../lib/product-images";
 import { HiMagnifyingGlass, HiHeart, HiChevronDown } from "react-icons/hi2";
 import { motion } from "motion/react";
@@ -14,8 +14,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { DEMO_PRODUCTS } from "../lib/demo-products";
 
 const WISHLIST_KEY = "easysamaan_wishlist_v1";
-/** Upper bound for price sliders and default max filter (Rs). */
-const PRICE_CAP = 5000;
 
 function productIsSoldOut(product: Product): boolean {
   return typeof product.stock_quantity === "number" && product.stock_quantity <= 0;
@@ -32,7 +30,7 @@ interface ShopFilters {
 const defaultFilters = (): ShopFilters => ({
   searchTerm: "",
   minPrice: 0,
-  maxPrice: PRICE_CAP,
+  maxPrice: SHOP_PRICE_FILTER_MAX_RS,
   selectedCategories: [],
   inStockOnly: false,
 });
@@ -138,7 +136,7 @@ function ShopPageContent() {
     const prices = products.map((p) => getDisplayPrice(p));
     const lo = Math.min(...prices);
     const hi = Math.max(...prices);
-    const upper = Math.min(PRICE_CAP, Math.max(Math.ceil(hi * 1.1), hi, lo));
+    const upper = Math.min(SHOP_PRICE_FILTER_MAX_RS, Math.max(Math.ceil(hi * 1.1), hi, lo));
     const lower = Math.max(0, Math.floor(lo));
     const minP = Math.min(lower, upper);
     setDraft((d) => ({ ...d, minPrice: minP, maxPrice: upper }));
@@ -188,7 +186,7 @@ function ShopPageContent() {
       const prices = products.map((p) => getDisplayPrice(p));
       const lo = Math.min(...prices);
       const hi = Math.max(...prices);
-      const upper = Math.min(PRICE_CAP, Math.max(Math.ceil(hi * 1.1), hi, lo));
+      const upper = Math.min(SHOP_PRICE_FILTER_MAX_RS, Math.max(Math.ceil(hi * 1.1), hi, lo));
       const lower = Math.max(0, Math.floor(lo));
       const minP = Math.min(lower, upper);
       const next: ShopFilters = {
@@ -378,13 +376,13 @@ function ShopPageContent() {
                       <input
                         type="range"
                         min={0}
-                        max={PRICE_CAP}
-                        value={Math.min(draft.minPrice, PRICE_CAP)}
+                        max={SHOP_PRICE_FILTER_MAX_RS}
+                        value={Math.min(draft.minPrice, SHOP_PRICE_FILTER_MAX_RS)}
                         onChange={(e) => {
                           const raw = Number(e.target.value);
                           setDraft((d) => ({
                             ...d,
-                            minPrice: Math.min(Math.max(0, raw), Math.min(d.maxPrice, PRICE_CAP)),
+                            minPrice: Math.min(Math.max(0, raw), Math.min(d.maxPrice, SHOP_PRICE_FILTER_MAX_RS)),
                           }));
                         }}
                         className="w-full accent-[#FF8D28]"
@@ -392,13 +390,13 @@ function ShopPageContent() {
                       <input
                         type="range"
                         min={0}
-                        max={PRICE_CAP}
-                        value={Math.min(draft.maxPrice, PRICE_CAP)}
+                        max={SHOP_PRICE_FILTER_MAX_RS}
+                        value={Math.min(draft.maxPrice, SHOP_PRICE_FILTER_MAX_RS)}
                         onChange={(e) => {
                           const raw = Number(e.target.value);
                           setDraft((d) => ({
                             ...d,
-                            maxPrice: Math.min(PRICE_CAP, Math.max(Math.max(0, raw), d.minPrice)),
+                            maxPrice: Math.min(SHOP_PRICE_FILTER_MAX_RS, Math.max(Math.max(0, raw), d.minPrice)),
                           }));
                         }}
                         className="w-full accent-[#FF8D28]"
@@ -407,7 +405,7 @@ function ShopPageContent() {
                         <input
                           type="number"
                           min={0}
-                          max={PRICE_CAP}
+                          max={SHOP_PRICE_FILTER_MAX_RS}
                           value={draft.minPrice}
                           onChange={(e) => {
                             const t = e.target.value;
@@ -416,7 +414,7 @@ function ShopPageContent() {
                             if (!Number.isFinite(v) || v < 0) return;
                             setDraft((d) => ({
                               ...d,
-                              minPrice: Math.min(v, Math.min(d.maxPrice, PRICE_CAP)),
+                              minPrice: Math.min(v, Math.min(d.maxPrice, SHOP_PRICE_FILTER_MAX_RS)),
                             }));
                           }}
                           className="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-black outline-none focus:border-[#FF8D28]"
@@ -424,7 +422,7 @@ function ShopPageContent() {
                         <input
                           type="number"
                           min={0}
-                          max={PRICE_CAP}
+                          max={SHOP_PRICE_FILTER_MAX_RS}
                           value={draft.maxPrice}
                           onChange={(e) => {
                             const t = e.target.value;
@@ -433,7 +431,7 @@ function ShopPageContent() {
                             if (!Number.isFinite(v) || v < 0) return;
                             setDraft((d) => ({
                               ...d,
-                              maxPrice: Math.min(PRICE_CAP, Math.max(v, d.minPrice)),
+                              maxPrice: Math.min(SHOP_PRICE_FILTER_MAX_RS, Math.max(v, d.minPrice)),
                             }));
                           }}
                           className="w-full rounded-xl border border-neutral-300 px-3 py-2 text-sm text-black outline-none focus:border-[#FF8D28]"

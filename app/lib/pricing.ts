@@ -1,5 +1,8 @@
 import type { Product } from './types';
 
+/** Upper bound (Rs) for `/shop` price range: sliders, number inputs, chip sync, filters. */
+export const SHOP_PRICE_FILTER_MAX_RS = 500_000;
+
 /** Sale price after discount (API sends `effective_price` when available). */
 export function getDisplayPrice(product: Product): number {
   if (typeof product.effective_price === 'number' && !Number.isNaN(product.effective_price)) {

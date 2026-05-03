@@ -43,6 +43,7 @@ export default function ShopOwnerPage() {
   });
   const [discountDrafts, setDiscountDrafts] = useState<Record<string, string>>({});
   const [restockDrafts, setRestockDrafts] = useState<Record<string, string>>({});
+  const [reduceDrafts, setReduceDrafts] = useState<Record<string, string>>({});
   const [newShop, setNewShop] = useState({
     name: '',
     addressQuery: '',
@@ -317,6 +318,85 @@ export default function ShopOwnerPage() {
     }
   };
 
+  const reduceStock = async (product: Product) => {
+    if (!token) {
+      alert('Your session expired. Sign in again.');
+      return;
+    }
+    const raw = (reduceDrafts[product.product_id] ?? '').trim();
+    const dropQty = parseInt(raw, 10);
+    if (!raw || Number.isNaN(dropQty) || dropQty <= 0) {
+      alert('Enter a positive whole number of units to remove from stock.');
+      return;
+    }
+    const current = product.stock_quantity ?? 0;
+    if (dropQty > current) {
+      alert(`You only have ${current} in stock. Enter ${current} or less.`);
+      return;
+    }
+    try {
+      const id = encodeURIComponent(product.product_id);
+      const newQty = Math.max(0, current - dropQty);
+      await apiClient.patch(`/shop-owner/products/${id}`, { stock_quantity: newQty }, token);
+      setReduceDrafts((d) => {
+        const next = { ...d };
+        delete next[product.product_id];
+        return next;
+      });
+      flashProductTick(product.product_id);
+      showSuccess(`Stock reduced for ${product.name} ✓`);
+      if (selectedShop) await loadProductsForShop(selectedShop);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message: string }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Failed to reduce stock';
+      alert(msg);
+    }
+  };
+
+  const restoreProductToCatalog = async (product: Product) => {
+    if (!token) {
+      alert('Your session expired. Sign in again.');
+      return;
+    }
+    try {
+      const id = encodeURIComponent(product.product_id);
+      await apiClient.patch(`/shop-owner/products/${id}`, { is_active: true }, token);
+      showSuccess(`${product.name} is live again ✓`);
+      if (selectedShop) await loadProductsForShop(selectedShop);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message: string }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Failed to restore product';
+      alert(msg);
+    }
+  };
+
+  const deleteProductFromCatalog = async (product: Product) => {
+    if (!token) {
+      alert('Your session expired. Sign in again.');
+      return;
+    }
+    const ok = window.confirm(
+      `Remove "${product.name}" from your catalog?\n\nCustomers will not see it anymore (marked inactive). You can use Restore if you change your mind.`
+    );
+    if (!ok) return;
+    try {
+      const id = encodeURIComponent(product.product_id);
+      await apiClient.delete(`/shop-owner/products/${id}`, token);
+      showSuccess(`${product.name} removed from storefront ✓`);
+      if (selectedShop) await loadProductsForShop(selectedShop);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'message' in err && typeof (err as { message: string }).message === 'string'
+          ? (err as { message: string }).message
+          : 'Failed to remove product';
+      alert(msg);
+    }
+  };
+
   if (!isAuthenticated) {
     return null;
   }
@@ -553,7 +633,7 @@ export default function ShopOwnerPage() {
                       </div>
                     ) : (
                       <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white shadow-sm">
-                        <table className="w-full min-w-[900px] text-left text-sm text-black">
+                        <table className="w-full min-w-[960px] text-left text-sm text-black">
                           <thead className="border-b border-neutral-200 bg-neutral-100 text-xs font-semibold uppercase tracking-wide text-black/70">
                             <tr>
                               <th className="px-4 py-3">Product</th>
@@ -564,6 +644,7 @@ export default function ShopOwnerPage() {
                               <th className="px-4 py-3">Status</th>
                               <th className="px-4 py-3">Sales (est.)</th>
                               <th className="px-4 py-3">Views (est.)</th>
+                              <th className="px-4 py-3">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -575,6 +656,7 @@ export default function ShopOwnerPage() {
                                 discountDrafts[product.product_id] ??
                                 (product.discount_percent != null ? String(product.discount_percent) : '0');
                               const restockDraft = restockDrafts[product.product_id] ?? '';
+                              const reduceDraft = reduceDrafts[product.product_id] ?? '';
                               return (
                                 <tr key={product.product_id} className="border-b border-neutral-100 last:border-0">
                                   <td className="px-4 py-3 font-medium text-black">{product.name}</td>
@@ -644,6 +726,27 @@ export default function ShopOwnerPage() {
                                           <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[11px] font-bold text-white">✓</span>
                                         )}
                                       </div>
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          step={1}
+                                          value={reduceDraft}
+                                          onChange={(e) =>
+                                            setReduceDrafts((d) => ({ ...d, [product.product_id]: e.target.value }))
+                                          }
+                                          className="w-20 rounded border border-neutral-300 px-1 py-1 text-sm text-black"
+                                          placeholder="-qty"
+                                          aria-label={`Reduce stock quantity for ${product.name}`}
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => void reduceStock(product)}
+                                          className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-black hover:bg-amber-100"
+                                        >
+                                          Reduce
+                                        </button>
+                                      </div>
                                     </div>
                                   </td>
                                   <td className="px-4 py-3">
@@ -664,6 +767,29 @@ export default function ShopOwnerPage() {
                                   <td className="px-4 py-3 tabular-nums text-black">
                                     {localViews}
                                     <span className="ml-1 text-xs text-black/50">(local)</span>
+                                  </td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-col gap-1">
+                                      {product.is_active ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => void deleteProductFromCatalog(product)}
+                                          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-semibold text-red-900 hover:bg-red-100"
+                                          title="Remove from customer catalog"
+                                        >
+                                          Delete
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => void restoreProductToCatalog(product)}
+                                          className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-black hover:bg-neutral-50"
+                                          title="Show again to customers"
+                                        >
+                                          Restore
+                                        </button>
+                                      )}
+                                    </div>
                                   </td>
                                 </tr>
                               );
